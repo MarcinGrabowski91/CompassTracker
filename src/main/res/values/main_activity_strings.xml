@@ -5,4 +5,7 @@
     <string name="main_activity_set">Set</string>
     <string name="main_activity_enter_target_value">Enter target values</string>
     <string name="main_activity_incorrect_target_values">Incorrect target values</string>
+    <string name="main_activity_cannot_find_your_localization">Cannot find your localization.
+    Check your Location Settings.</string>
+    <string name="main_activity_cannot_reach_your_localization">Cannot reach your localization.</string>
 </resources>

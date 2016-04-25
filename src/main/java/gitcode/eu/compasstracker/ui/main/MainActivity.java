@@ -1,5 +1,6 @@
 package gitcode.eu.compasstracker.ui.main;
 
+import android.content.Intent;
 import android.hardware.GeomagneticField;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -8,23 +9,21 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
+import android.widget.Toast;
 
 import gitcode.eu.compasstracker.R;
 import gitcode.eu.compasstracker.app.base.BaseActivity;
 import gitcode.eu.compasstracker.ui.main.fragment.CompassFragment;
+import gitcode.eu.compasstracker.utils.LocalizationUtils;
 
 /**
  * Main activity of application
  */
 public class MainActivity extends BaseActivity implements CompassFragment.CompassFragmentListener,
         SensorEventListener {
-    /**
-     * Time smoothing constant for low-pass filter 0 ≤ alpha ≤ 1 ; a smaller value basically means
-     * more smoothing
-     */
-    static final float ALPHA = 0.15f;
     /**
      * Sensor manager
      */
@@ -45,14 +44,7 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
      * Currently displayed target arrow degree
      */
     private float currentArrowDegree = 0f;
-    /**
-     * Rotation matrix
-     */
-    private float[] rotationMatrix = new float[9];
-    /**
-     * Device orientation values
-     */
-    private float[] deviceOrientation = new float[3];
+
     /**
      * Current accelerometer values
      */
@@ -73,6 +65,14 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
      * Target location longitude
      */
     private Float targetLongitude;
+    /**
+     * Indicates if gps localization is enabled
+     */
+    private boolean isLocationGPSEnabled = false;
+    /**
+     * Indicates if network localization is enabled
+     */
+    private boolean isLocationNetworkEnabled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,8 +100,14 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
     //region CompassFragment listener
     @Override
     public void onSetBtnClicked(float latitude, float longitude) {
-        targetLatitude = latitude;
-        targetLongitude = longitude;
+        if (isLocationGPSEnabled || isLocationNetworkEnabled) {
+            targetLatitude = latitude;
+            targetLongitude = longitude;
+        } else {
+            Toast.makeText(this, getString(R.string.main_activity_cannot_find_your_localization)
+                    , Toast.LENGTH_SHORT).show();
+            startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+        }
     }
     //endregion
 
@@ -109,9 +115,9 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor == accelerometer) {
-            accelerometerValues = filterSensorValues(event.values.clone(), accelerometerValues);
+            accelerometerValues = LocalizationUtils.filterSensorValues(event.values.clone(), accelerometerValues);
         } else if (event.sensor == magnetometer) {
-            magnetometerValues = filterSensorValues(event.values.clone(), magnetometerValues);
+            magnetometerValues = LocalizationUtils.filterSensorValues(event.values.clone(), magnetometerValues);
         }
         if (accelerometerValues != null && magnetometerValues != null) {
             RotateAnimation compassRotation = getCompassRotateAnimation();
@@ -138,6 +144,8 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
      * @return rotate animation for compass
      */
     private RotateAnimation getCompassRotateAnimation() {
+        float[] rotationMatrix = new float[9];
+        float[] deviceOrientation = new float[3];
         SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerValues, magnetometerValues);
         SensorManager.getOrientation(rotationMatrix, deviceOrientation);
         float azimuthInRadians = deviceOrientation[0];
@@ -154,18 +162,32 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
      * @return rotate animation for target arrow
      */
     private RotateAnimation getTargetRotateAnimation() {
-        GeomagneticField geomagneticField = getGeomagneticField();
         RotateAnimation arrowRotation = null;
+        isLocationGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        isLocationNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        CompassFragment compassFragment = findFragment(CompassFragment.class);
+        if (compassFragment != null) {
+            if (!isLocationGPSEnabled && !isLocationNetworkEnabled) {
+                compassFragment.setLocalizationErrorVisibility(true);
+            } else {
+                compassFragment.setLocalizationErrorVisibility(false);
+            }
+        }
         if (targetLatitude != null && targetLongitude != null) {
-            Location targetLocation = getLastBestLocation();
-            targetLocation.setLatitude(targetLatitude);
-            targetLocation.setLongitude(targetLongitude);
-            float azimuth = geomagneticField.getDeclination();
-            float bearing = getLastBestLocation().bearingTo(targetLocation);
-            float direction = azimuth - bearing;
-            float newRotationDegree = -direction - 360 + (currentCompassDegree) % 360;
-            arrowRotation = getRotateAnimation(currentArrowDegree, newRotationDegree);
-            currentArrowDegree = newRotationDegree;
+            Location lastKnownLocation = LocalizationUtils.getLastBestLocation(locationManager,
+                    isLocationGPSEnabled, isLocationNetworkEnabled);
+            if (lastKnownLocation != null) {
+                GeomagneticField geomagneticField = LocalizationUtils.getGeomagneticField(lastKnownLocation);
+                Location targetLocation = new Location(lastKnownLocation);
+                targetLocation.setLatitude(targetLatitude);
+                targetLocation.setLongitude(targetLongitude);
+                float azimuth = geomagneticField.getDeclination();
+                float bearing = lastKnownLocation.bearingTo(targetLocation);
+                float direction = azimuth - bearing;
+                float newRotationDegree = -direction - 360 + (currentCompassDegree) % 360;
+                arrowRotation = getRotateAnimation(currentArrowDegree, newRotationDegree);
+                currentArrowDegree = newRotationDegree;
+            }
         }
         return arrowRotation;
     }
@@ -187,57 +209,5 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
         rotateAnimation.setDuration(250);
         rotateAnimation.setFillAfter(true);
         return rotateAnimation;
-    }
-
-    /**
-     * Get geomagnetic field based on device location
-     *
-     * @return geomagnetic field object based on device location
-     */
-    private GeomagneticField getGeomagneticField() {
-        Location myLastLocation = getLastBestLocation();
-        return new GeomagneticField(
-                Double.valueOf(myLastLocation.getLatitude()).floatValue(),
-                Double.valueOf(myLastLocation.getLongitude()).floatValue(),
-                Double.valueOf(myLastLocation.getAltitude()).floatValue(),
-                System.currentTimeMillis()
-        );
-    }
-
-    /**
-     * Filter sensor values using low pass filter
-     *
-     * @param input  sensor values
-     * @param output filtered sensor values
-     * @return filtered sensor values
-     */
-    private float[] filterSensorValues(float[] input, float[] output) {
-        if (output != null) {
-            for (int i = 0; i < input.length; i++) {
-                output[i] = output[i] + ALPHA * (input[i] - output[i]);
-            }
-            return output;
-        }
-        return input;
-    }
-
-    /**
-     * Get the last know location based on GPS or Internet (choose newer time value)
-     *
-     * @return the last know best location
-     */
-    private Location getLastBestLocation() {
-        Location locationGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        Location locationNet = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        long GPSLocationTime = 0;
-        long NetLocationTime = 0;
-        if (null != locationGPS) {
-            GPSLocationTime = locationGPS.getTime();
-        }
-        if (null != locationNet) {
-            NetLocationTime = locationNet.getTime();
-        }
-
-        return 0 < GPSLocationTime - NetLocationTime ? locationGPS : locationNet;
     }
 }

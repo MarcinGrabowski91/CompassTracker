@@ -2,10 +2,17 @@
                 a:layout_width="match_parent"
                 a:layout_height="match_parent"
                 a:padding="@dimen/margin_medium">
+    <TextView
+        a:id="@+id/compass_fragment_no_localization_txt"
+        a:layout_width="match_parent"
+        a:layout_height="wrap_content"
+        a:text="@string/main_activity_cannot_reach_your_localization"
+        a:visibility="gone"/>
     <RelativeLayout
         a:layout_width="match_parent"
         a:layout_height="match_parent"
-        a:layout_above="@+id/compass_fragment_bottom_lay">
+        a:layout_above="@+id/compass_fragment_bottom_lay"
+        a:layout_below="@id/compass_fragment_no_localization_txt">
         <ImageView
             a:id="@+id/compass_fragment_compass_img"
             a:layout_width="match_parent"

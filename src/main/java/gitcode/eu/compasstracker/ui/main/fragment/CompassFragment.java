@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.view.animation.RotateAnimation;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import butterknife.Bind;
@@ -34,6 +35,8 @@ public class CompassFragment extends BaseFragment<CompassFragment.CompassFragmen
     @Bind(R.id.compass_fragment_longitude_edit)
     EditText longitudeEdit;
 
+    @Bind(R.id.compass_fragment_no_localization_txt)
+    TextView localizationErrorTxt;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -77,6 +80,19 @@ public class CompassFragment extends BaseFragment<CompassFragment.CompassFragmen
      */
     public void rotateDestinationArrow(RotateAnimation rotateAnimation) {
         arrowImg.startAnimation(rotateAnimation);
+    }
+
+    /**
+     * Set localization error visibility
+     *
+     * @param visible is error should be visible
+     */
+    public void setLocalizationErrorVisibility(boolean visible) {
+        if (visible && localizationErrorTxt.getVisibility() == View.GONE) {
+            localizationErrorTxt.setVisibility(View.VISIBLE);
+        } else if (!visible && localizationErrorTxt.getVisibility() == View.VISIBLE) {
+            localizationErrorTxt.setVisibility(View.GONE);
+        }
     }
 
     /**
