@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="main_activity_latitude">Latitude</string>
+    <string name="main_activity_longitude">Longitude</string>
+    <string name="main_activity_set">Set</string>
+    <string name="main_activity_enter_target_value">Enter target values</string>
+    <string name="main_activity_incorrect_target_values">Incorrect target values</string>
+</resources>

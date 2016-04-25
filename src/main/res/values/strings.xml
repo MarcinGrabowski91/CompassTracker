@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Compass Tracker</string>
+    <string name="cmn_throbber_title">Loading</string>
+    <string name="cmn_throbber_message">Please wait..</string>
+</resources>
