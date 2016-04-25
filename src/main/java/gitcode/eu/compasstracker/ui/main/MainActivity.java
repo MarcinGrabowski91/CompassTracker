@@ -162,8 +162,8 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
             targetLocation.setLongitude(targetLongitude);
             float azimuth = geomagneticField.getDeclination();
             float bearing = getLastBestLocation().bearingTo(targetLocation);
-            float direction = azimuth - bearing + 15;
-            float newRotationDegree = direction - 360 + (currentCompassDegree) % 360;
+            float direction = azimuth - bearing;
+            float newRotationDegree = -direction - 360 + (currentCompassDegree) % 360;
             arrowRotation = getRotateAnimation(currentArrowDegree, newRotationDegree);
             currentArrowDegree = newRotationDegree;
         }
