@@ -31,7 +31,7 @@ public class MainActivity extends BaseActivity implements CompassFragment.Compas
     /**
      * Accelerometer sensor
      */
-    private Sensor accelerometer;
+    private Sensor accelerometer;;
     /**
      * Magnometer sensor
      */
